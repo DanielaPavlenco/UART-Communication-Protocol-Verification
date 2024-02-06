@@ -1,0 +1,141 @@
+module UART_Module (
+  input logic clk,
+  input logic rst_n,
+  input logic tx_start,
+  input logic [7:0] tx_data,
+  output logic tx_busy,
+  output logic tx_done,
+  input logic rx_start,
+  input logic rx_input,
+  output logic [7:0] rx_data,
+  output logic rx_done,
+  output logic rx_error
+);
+  // UART parameters
+  localparam BITRATE = 9600; // Baud rate
+  localparam DATA_BITS = 8;
+  localparam STOP_BITS = 1;
+  localparam START_BIT_CYCLES = 1;
+
+  // Internal signals
+  logic [DATA_BITS+1:0] tx_shift_reg;
+  logic [DATA_BITS+1:0] rx_shift_reg;
+  logic [3:0] tx_count;
+  logic [3:0] rx_count;
+  logic tx_busy_internal;
+
+  // UART state enum
+  typedef enum logic [1:0] {
+    IDLE   = 2'b00,
+    START  = 2'b01,
+    DATA   = 2'b10,
+    STOP   = 2'b11
+  } uart_state_t;
+
+  // Registers
+  uart_state_t state, next_state;
+
+  // Transmit logic
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (~rst_n) begin
+      // Reset logic
+      state <= IDLE;
+      tx_shift_reg <= {{START_BIT_CYCLES{1'b1}}, 8'h00, 1'b0}; // Start bit, data, stop bit
+      tx_count <= 4'b0;
+      tx_busy_internal <= 0;
+    end else begin
+      // State machine
+      state <= next_state;
+      case (state)
+        IDLE: begin
+          tx_done <= 0;
+          tx_busy <= 0;
+          if (tx_start) begin
+            tx_busy_internal <= 1;
+            next_state <= START;
+          end
+        end
+        START: begin
+          // Transmit start bit
+          tx_shift_reg <= {tx_shift_reg[DATA_BITS:0], 1'b0};
+          next_state <= DATA;
+        end
+        DATA: begin
+          // Transmit data bits
+          if (tx_count < DATA_BITS) begin
+            tx_shift_reg <= {tx_shift_reg[DATA_BITS:0], tx_data[tx_count]};
+            tx_count <= tx_count + 1;
+          end else begin
+            tx_count <= 0;
+            next_state <= STOP;
+          end
+        end
+        STOP: begin
+          // Transmit stop bit(s)
+          tx_shift_reg <= {tx_shift_reg[DATA_BITS:0], 1'b1};
+          next_state <= IDLE;
+          tx_busy_internal <= 0;
+          tx_done <= 1;
+        end
+        default: next_state <= IDLE;
+      endcase
+    end
+  end
+
+  // Receive logic
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (~rst_n) begin
+      // Reset logic
+      state <= IDLE;
+      rx_shift_reg <= {{START_BIT_CYCLES{1'b1}}, 8'h00, 1'b0}; // Start bit, data, stop bit
+      rx_count <= 4'b0;
+    end else begin
+      // State machine
+      state <= next_state;
+      case (state)
+        IDLE: begin
+          rx_done <= 0;
+          rx_error <= 0;
+          if (rx_start) begin
+            next_state <= START;
+          end
+        end
+        START: begin
+          // Receive start bit
+          if (rx_input == 1'b0) begin
+            // Invalid start bit
+            rx_error <= 1;
+          end
+          next_state <= DATA;
+        end
+        DATA: begin
+          // Receive data bits
+          if (rx_count < DATA_BITS) begin
+            rx_shift_reg <= {rx_shift_reg[DATA_BITS:0], rx_input};
+            rx_count <= rx_count + 1;
+          end else begin
+            rx_count <= 0;
+            next_state <= STOP;
+          end
+        end
+        STOP: begin
+          // Receive stop bit(s)
+          if (rx_input == 1'b1) begin
+            // Invalid stop bit
+            rx_error <= 1;
+          end
+          rx_done <= 1;
+          next_state <= IDLE;
+        end
+        default: next_state <= IDLE;
+      endcase
+    end
+  end
+
+  // Output the received data
+  assign rx_data = rx_shift_reg[DATA_BITS-1:0];
+
+  // Assign internal busy to external busy
+  assign tx_busy = tx_busy_internal;
+
+endmodule
