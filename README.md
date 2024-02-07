@@ -6,6 +6,14 @@ This project focuses on verifying the UART (Universal Asynchronous Receiver-Tran
 
 The UART communication protocol is widely used for serial communication between devices. This project aims to verify the correctness and reliability of the UART implementation by conducting various tests and simulations.
 
+Most UART is a computer hardware device that is used for serial communication. The device is used for data exchange between a computer and outer devices as it provides high reliability and capability of data transmitting to a long distance. It is used to control the process of converting parallel data into serial data. It consists of one transmitter and one receiver.
+The basic structure of the UART illustrating the process of both transmission and reception is shown: 
+![image](https://github.com/DanielaPavlenco/UART-Communication-Protocol-Verification/assets/101560755/56687161-30ef-415b-90a5-a73ba2bec5b3)
+
+Diagram description of the environment:
+![image](https://github.com/DanielaPavlenco/UART-Communication-Protocol-Verification/assets/101560755/7176ee5f-815f-4db9-b1ff-677c9c45afb2)
+
+
 ## Requirements
 
 - Hardware setup (e.g., UART transceivers, microcontrollers)
